@@ -1,12 +1,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { FlashcardData } from "../types";
 
-// Initialize Gemini Client
-// In a real app, do not expose keys on client side without safeguards.
-// This assumes process.env.API_KEY is available in the build environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const generateFlashcardsFromTopic = async (topic: string): Promise<FlashcardData[]> => {
+  // Initialize client lazily to prevent top-level crashes if process.env is not ready
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key is not set. Please check your environment configuration.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",

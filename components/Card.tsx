@@ -12,10 +12,10 @@ export const Card: React.FC<CardProps> = ({ data, isFlipped, onFlip }) => {
   return (
     <div className="relative w-full max-w-md h-96 perspective-1000 cursor-pointer" onClick={onFlip}>
       <motion.div
-        className="relative w-full h-full text-center transition-all duration-500 preserve-3d"
+        className="relative w-full h-full text-center transition-all preserve-3d"
         initial={false}
         animate={{ rotateY: isFlipped ? 180 : 0 }}
-        transition={{ duration: 0.25, type: "tween", ease: "easeInOut" }}
+        transition={{ duration: 0.15, type: "tween", ease: "easeInOut" }}
         style={{ transformStyle: 'preserve-3d' }}
       >
         {/* Front of Card */}
