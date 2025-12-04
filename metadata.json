@@ -1,0 +1,5 @@
+{
+  "name": "Flashcard Study Portal",
+  "description": "A clean, responsive flashcard application that imports CSV files or generates decks using Gemini AI. Features keyboard navigation, shuffle, and smooth animations.",
+  "requestFramePermissions": []
+}
