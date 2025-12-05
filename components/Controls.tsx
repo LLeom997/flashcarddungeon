@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { RefreshCw, Download, Star } from 'lucide-react';
+import { RefreshCw, Download, Star, ArrowRightLeft } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ControlsProps {
@@ -11,6 +11,8 @@ interface ControlsProps {
   showToughOnly: boolean;
   onToggleMode: () => void;
   toughCount: number;
+  isReversed: boolean;
+  onToggleReverse: () => void;
 }
 
 export const Controls: React.FC<ControlsProps> = ({ 
@@ -20,7 +22,9 @@ export const Controls: React.FC<ControlsProps> = ({
   onDownload,
   showToughOnly,
   onToggleMode,
-  toughCount
+  toughCount,
+  isReversed,
+  onToggleReverse
 }) => {
   const progress = total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
 
@@ -50,8 +54,23 @@ export const Controls: React.FC<ControlsProps> = ({
       </div>
 
       {/* Right Side Actions */}
-      <div className="flex items-center gap-6 order-3">
-        {/* Toggle Mode Button */}
+      <div className="flex items-center gap-3 order-3">
+        {/* Reverse Toggle Button */}
+        <button
+          onClick={onToggleReverse}
+          className={clsx(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all border",
+            isReversed 
+              ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100" 
+              : "bg-transparent border-transparent hover:bg-gray-100 text-gray-500"
+          )}
+          title="Swap Question and Answer"
+        >
+          <ArrowRightLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">Swap Sides</span>
+        </button>
+
+        {/* Toggle Tough Mode Button */}
         <button
           onClick={onToggleMode}
           className={clsx(
@@ -71,7 +90,7 @@ export const Controls: React.FC<ControlsProps> = ({
         {/* Download Button (Mock) */}
         <button 
           onClick={onDownload}
-          className="flex items-center gap-2 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-2 hover:text-gray-900 transition-colors ml-2"
         >
           <Download className="w-4 h-4" />
           <span className="hidden sm:inline">Download</span>

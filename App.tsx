@@ -16,6 +16,7 @@ export default function App() {
   
   // View state
   const [showToughOnly, setShowToughOnly] = useState(false);
+  const [isReversed, setIsReversed] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   
@@ -38,6 +39,21 @@ export default function App() {
   const toughCount = useMemo(() => {
     return allCards.filter(c => c.isTough).length;
   }, [allCards]);
+
+  const currentCardData = useMemo(() => {
+    if (activeDeck.length === 0) return null;
+    const baseCard = activeDeck[currentIndex];
+    
+    // If reversed, swap question and answer for display
+    if (isReversed) {
+      return {
+        ...baseCard,
+        question: baseCard.answer,
+        answer: baseCard.question
+      };
+    }
+    return baseCard;
+  }, [activeDeck, currentIndex, isReversed]);
 
   // Ensure index is valid when deck changes
   useEffect(() => {
@@ -178,6 +194,11 @@ export default function App() {
     setShowToughOnly(prev => !prev);
     setCurrentIndex(0);
     setIsFlipped(false);
+  };
+
+  const toggleReverseMode = () => {
+    setIsReversed(prev => !prev);
+    setIsFlipped(false); // Reset flip state to avoid confusion
   };
 
   // --- Keyboard Listeners ---
@@ -355,7 +376,7 @@ export default function App() {
         {gameState === GameState.STUDY && (
           <div className="w-full flex flex-col items-center animate-in fade-in duration-700">
             
-            {activeDeck.length > 0 ? (
+            {activeDeck.length > 0 && currentCardData ? (
               <>
                 <div className="flex items-center w-full justify-center gap-8 md:gap-16">
                   <button 
@@ -366,7 +387,7 @@ export default function App() {
                   </button>
 
                   <Card 
-                    data={activeDeck[currentIndex]} 
+                    data={currentCardData} 
                     isFlipped={isFlipped} 
                     onFlip={flipCard} 
                     onToggleTough={toggleTough}
@@ -419,6 +440,8 @@ export default function App() {
               showToughOnly={showToughOnly}
               onToggleMode={toggleStudyMode}
               toughCount={toughCount}
+              isReversed={isReversed}
+              onToggleReverse={toggleReverseMode}
             />
 
             <div className="mt-8 text-xs text-gray-400 font-medium tracking-wide">
