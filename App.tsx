@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, ArrowLeft, ArrowRight, Shuffle, Loader2, Maximize2, Sparkles, ThumbsUp, ThumbsDown, Layers, FileSpreadsheet, Star } from 'lucide-react';
+import Papa from 'papaparse';
+import { Upload, ArrowLeft, ArrowRight, Shuffle, Loader2, Maximize2, Sparkles, ThumbsUp, ThumbsDown, Layers, FileSpreadsheet, Star, Link } from 'lucide-react';
 import { Card } from './components/Card';
 import { Controls } from './components/Controls';
 import { FlashcardData, GameState } from './types';
-import { parseFile, parseSpecificSheet } from './utils/csvParser';
+import { parseFile, parseSpecificSheet, fetchGoogleSheet } from './utils/csvParser';
 import { generateFlashcardsFromTopic } from './services/geminiService';
 
 export default function App() {
@@ -21,6 +21,7 @@ export default function App() {
   const [isFlipped, setIsFlipped] = useState(false);
   
   const [topicInput, setTopicInput] = useState('');
+  const [sheetUrl, setSheetUrl] = useState('');
   const [loadingMessage, setLoadingMessage] = useState('');
   
   // Multi-sheet handling
@@ -96,6 +97,36 @@ export default function App() {
     }
   };
 
+  const handleUrlUpload = async () => {
+    if (!sheetUrl.trim()) return;
+    setLoadingMessage('Fetching Google Sheet...');
+    setGameState(GameState.LOADING);
+
+    try {
+        const result = await fetchGoogleSheet(sheetUrl);
+        
+        if (result.type === 'workbook' && result.sheets && result.workbook) {
+            setWorkbook(result.workbook);
+            setAvailableSheets(result.sheets);
+            setGameState(GameState.SHEET_SELECTION);
+        } else if (result.type === 'cards' && result.data) {
+             if (result.data.length === 0) {
+                 alert("No valid cards found.");
+                 setGameState(GameState.UPLOAD);
+                 return;
+             }
+             setAllCards(result.data);
+             setGameState(GameState.STUDY);
+             setCurrentIndex(0);
+             setIsFlipped(false);
+        }
+    } catch (error: any) {
+        console.error(error);
+        alert(error.message || "Error loading Google Sheet.");
+        setGameState(GameState.UPLOAD);
+    }
+  };
+
   const handleSheetSelect = (sheetName: string) => {
     if (!workbook) return;
     setLoadingMessage(`Loading deck: ${sheetName}...`);
@@ -137,6 +168,30 @@ export default function App() {
       alert("Failed to generate cards. Please check your API key or try again.");
       setGameState(GameState.UPLOAD);
     }
+  };
+
+  const handleDownload = () => {
+    if (allCards.length === 0) return;
+    
+    // Map data to CSV structure, including Tough status
+    const csvData = allCards.map(c => ({
+        Question: c.question,
+        Answer: c.answer,
+        Status: c.isTough ? 'Tough' : 'Normal'
+    }));
+
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'flashcards_export.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const nextCard = useCallback(() => {
@@ -210,6 +265,13 @@ export default function App() {
       // Ignore if typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
+      // Check for Shift + S to shuffle
+      if (e.shiftKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        shuffleCards();
+        return;
+      }
+
       switch (e.key) {
         case 'ArrowRight':
           nextCard();
@@ -233,7 +295,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, nextCard, prevCard, flipCard, toggleTough]);
+  }, [gameState, nextCard, prevCard, flipCard, toggleTough, shuffleCards]);
 
   // --- Render ---
 
@@ -263,7 +325,7 @@ export default function App() {
         </div>
         <div className="flex gap-2">
            {gameState === GameState.STUDY && (
-             <button onClick={shuffleCards} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Shuffle">
+             <button onClick={shuffleCards} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Shuffle (Shift + S)">
                <Shuffle className="w-5 h-5 text-gray-600" />
              </button>
            )}
@@ -304,6 +366,32 @@ export default function App() {
                 Select File
               </div>
             </label>
+
+            {/* URL Input */}
+            <div className="mt-4 w-full">
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Link className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <input 
+                            type="text" 
+                            placeholder="Or paste Google Sheet Link" 
+                            value={sheetUrl}
+                            onChange={(e) => setSheetUrl(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                        />
+                    </div>
+                    <button 
+                        onClick={handleUrlUpload}
+                        disabled={!sheetUrl.trim()}
+                        className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        title="Load from URL"
+                    >
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
 
             <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
@@ -436,7 +524,7 @@ export default function App() {
               currentIndex={currentIndex} 
               total={activeDeck.length} 
               onRestart={() => { setCurrentIndex(0); setIsFlipped(false); }}
-              onDownload={() => alert("Download feature coming soon!")}
+              onDownload={handleDownload}
               showToughOnly={showToughOnly}
               onToggleMode={toggleStudyMode}
               toughCount={toughCount}
@@ -445,7 +533,7 @@ export default function App() {
             />
 
             <div className="mt-8 text-xs text-gray-400 font-medium tracking-wide">
-              SPACE to flip • ARROWS to navigate • A / T for tough cards
+              SPACE to flip • ARROWS to navigate • A / T for tough cards • Shift + S to shuffle
             </div>
 
           </div>

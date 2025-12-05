@@ -87,3 +87,45 @@ export const parseSpecificSheet = (workbook: any, sheetName: string): FlashcardD
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
   return processRawRows(rows);
 };
+
+export const fetchGoogleSheet = async (url: string): Promise<ParseResult> => {
+  // Basic regex to extract the ID from a typical Google Sheet URL
+  const matches = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (!matches || !matches[1]) {
+    throw new Error("Invalid Google Sheet URL. Could not find Sheet ID.");
+  }
+  const sheetId = matches[1];
+  
+  // Use the export endpoint to get it as XLSX
+  const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
+
+  try {
+    let blob: Blob;
+
+    try {
+        // Attempt 1: Direct Fetch
+        const response = await fetch(exportUrl);
+        if (!response.ok) throw new Error("Direct fetch failed");
+        blob = await response.blob();
+    } catch (e) {
+        // Attempt 2: CORS Proxy
+        console.log("Direct fetch blocked by CORS, attempting via proxy...");
+        // using api.allorigins.win as a free CORS proxy
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(exportUrl)}`;
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error("Proxy fetch failed");
+        blob = await response.blob();
+    }
+
+    // Convert blob to File to reuse existing logic
+    const file = new File([blob], "google_sheet_export.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    return parseFile(file);
+
+  } catch (error: any) {
+    console.error(error);
+    if (error.message && error.message.includes('fetch')) {
+        throw new Error("Unable to load sheet. Please ensure the Google Sheet is visible to 'Anyone with the link'.");
+    }
+    throw error;
+  }
+};
