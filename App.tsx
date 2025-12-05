@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Papa from 'papaparse';
 import { Upload, ArrowLeft, ArrowRight, Shuffle, Loader2, Maximize2, Sparkles, ThumbsUp, ThumbsDown, Layers, FileSpreadsheet, Star, Link } from 'lucide-react';
 import { Card } from './components/Card';
@@ -19,6 +19,7 @@ export default function App() {
   const [isReversed, setIsReversed] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [direction, setDirection] = useState(0);
   
   const [topicInput, setTopicInput] = useState('');
   const [sheetUrl, setSheetUrl] = useState('');
@@ -27,6 +28,9 @@ export default function App() {
   // Multi-sheet handling
   const [workbook, setWorkbook] = useState<any>(null);
   const [availableSheets, setAvailableSheets] = useState<string[]>([]);
+  
+  // Refs
+  const isDraggingRef = useRef(false);
 
   // --- Derived State ---
 
@@ -196,18 +200,16 @@ export default function App() {
 
   const nextCard = useCallback(() => {
     if (activeDeck.length === 0) return;
+    setDirection(1);
     setIsFlipped(false);
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % activeDeck.length);
-    }, 150);
+    setCurrentIndex((prev) => (prev + 1) % activeDeck.length);
   }, [activeDeck.length]);
 
   const prevCard = useCallback(() => {
     if (activeDeck.length === 0) return;
+    setDirection(-1);
     setIsFlipped(false);
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev === 0 ? activeDeck.length - 1 : prev - 1));
-    }, 150);
+    setCurrentIndex((prev) => (prev === 0 ? activeDeck.length - 1 : prev - 1));
   }, [activeDeck.length]);
 
   const flipCard = useCallback(() => {
@@ -237,6 +239,7 @@ export default function App() {
       }
       return newCards;
     });
+    setDirection(1);
     setCurrentIndex(0);
     setIsFlipped(false);
   }, []);
@@ -248,12 +251,35 @@ export default function App() {
     }
     setShowToughOnly(prev => !prev);
     setCurrentIndex(0);
+    setDirection(1);
     setIsFlipped(false);
   };
 
   const toggleReverseMode = () => {
     setIsReversed(prev => !prev);
     setIsFlipped(false); // Reset flip state to avoid confusion
+  };
+
+  // --- Animation Variants ---
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+      scale: 0.9,
+      zIndex: 0
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 300 : -300,
+      opacity: 0,
+      scale: 0.9
+    })
   };
 
   // --- Keyboard Listeners ---
@@ -474,12 +500,45 @@ export default function App() {
                     <ArrowLeft className="w-5 h-5" />
                   </button>
 
-                  <Card 
-                    data={currentCardData} 
-                    isFlipped={isFlipped} 
-                    onFlip={flipCard} 
-                    onToggleTough={toggleTough}
-                  />
+                  <div className="relative w-full max-w-md h-96">
+                    <AnimatePresence initial={false} custom={direction}>
+                      <motion.div
+                        key={currentIndex}
+                        custom={direction}
+                        variants={slideVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{
+                          x: { type: "spring", stiffness: 300, damping: 30 },
+                          opacity: { duration: 0.2 }
+                        }}
+                        className="absolute inset-0 touch-pan-y"
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={0.2}
+                        onDragStart={() => { isDraggingRef.current = true; }}
+                        onDragEnd={(e, { offset }) => {
+                          const swipeThreshold = 50;
+                          if (offset.x > swipeThreshold) {
+                            prevCard();
+                          } else if (offset.x < -swipeThreshold) {
+                            nextCard();
+                          }
+                          setTimeout(() => { isDraggingRef.current = false; }, 100);
+                        }}
+                      >
+                        <Card 
+                          data={currentCardData} 
+                          isFlipped={isFlipped} 
+                          onFlip={() => {
+                            if (!isDraggingRef.current) flipCard();
+                          }}
+                          onToggleTough={toggleTough}
+                        />
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
 
                   <button 
                     onClick={nextCard}
