@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Papa from 'papaparse';
@@ -17,6 +18,7 @@ export default function App() {
   // View state
   const [showToughOnly, setShowToughOnly] = useState(false);
   const [isReversed, setIsReversed] = useState(false);
+  const [isAutoFlip, setIsAutoFlip] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
@@ -67,6 +69,17 @@ export default function App() {
     }
   }, [activeDeck.length, currentIndex]);
 
+  // Auto-flip effect
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isAutoFlip && gameState === GameState.STUDY) {
+      interval = setInterval(() => {
+        setIsFlipped(prev => !prev);
+      }, 500); // 2 flips per second = 500ms
+    }
+    return () => clearInterval(interval);
+  }, [isAutoFlip, gameState]);
+
   // --- Actions ---
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,6 +106,7 @@ export default function App() {
         setGameState(GameState.STUDY);
         setCurrentIndex(0);
         setIsFlipped(false);
+        setIsAutoFlip(false);
       }
     } catch (error) {
       console.error(error);
@@ -123,6 +137,7 @@ export default function App() {
              setGameState(GameState.STUDY);
              setCurrentIndex(0);
              setIsFlipped(false);
+             setIsAutoFlip(false);
         }
     } catch (error: any) {
         console.error(error);
@@ -148,6 +163,7 @@ export default function App() {
         setGameState(GameState.STUDY);
         setCurrentIndex(0);
         setIsFlipped(false);
+        setIsAutoFlip(false);
       } catch (err) {
         console.error(err);
         alert("Error loading sheet.");
@@ -167,6 +183,7 @@ export default function App() {
       setGameState(GameState.STUDY);
       setCurrentIndex(0);
       setIsFlipped(false);
+      setIsAutoFlip(false);
     } catch (error) {
       console.error(error);
       alert("Failed to generate cards. Please check your API key or try again.");
@@ -258,6 +275,10 @@ export default function App() {
   const toggleReverseMode = () => {
     setIsReversed(prev => !prev);
     setIsFlipped(false); // Reset flip state to avoid confusion
+  };
+
+  const toggleAutoFlip = () => {
+    setIsAutoFlip(prev => !prev);
   };
 
   // --- Animation Variants ---
@@ -582,13 +603,15 @@ export default function App() {
             <Controls 
               currentIndex={currentIndex} 
               total={activeDeck.length} 
-              onRestart={() => { setCurrentIndex(0); setIsFlipped(false); }}
+              onRestart={() => { setCurrentIndex(0); setIsFlipped(false); setIsAutoFlip(false); }}
               onDownload={handleDownload}
               showToughOnly={showToughOnly}
               onToggleMode={toggleStudyMode}
               toughCount={toughCount}
               isReversed={isReversed}
               onToggleReverse={toggleReverseMode}
+              isAutoFlip={isAutoFlip}
+              onToggleAutoFlip={toggleAutoFlip}
             />
 
             <div className="mt-8 text-xs text-gray-400 font-medium tracking-wide">

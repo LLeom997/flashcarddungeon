@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { RefreshCw, Download, Star, ArrowRightLeft } from 'lucide-react';
+import { RefreshCw, Download, Star, ArrowRightLeft, Timer } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ControlsProps {
@@ -13,6 +13,8 @@ interface ControlsProps {
   toughCount: number;
   isReversed: boolean;
   onToggleReverse: () => void;
+  isAutoFlip: boolean;
+  onToggleAutoFlip: () => void;
 }
 
 export const Controls: React.FC<ControlsProps> = ({ 
@@ -24,7 +26,9 @@ export const Controls: React.FC<ControlsProps> = ({
   onToggleMode,
   toughCount,
   isReversed,
-  onToggleReverse
+  onToggleReverse,
+  isAutoFlip,
+  onToggleAutoFlip
 }) => {
   const progress = total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
 
@@ -55,6 +59,21 @@ export const Controls: React.FC<ControlsProps> = ({
 
       {/* Right Side Actions */}
       <div className="flex items-center gap-3 order-3">
+        {/* Auto Flip Button */}
+        <button
+          onClick={onToggleAutoFlip}
+          className={clsx(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all border",
+            isAutoFlip
+              ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+              : "bg-transparent border-transparent hover:bg-gray-100 text-gray-500"
+          )}
+          title="Auto Flip (2 flips/sec)"
+        >
+          <Timer className="w-4 h-4" />
+          <span className="hidden sm:inline">Auto Flip</span>
+        </button>
+
         {/* Reverse Toggle Button */}
         <button
           onClick={onToggleReverse}
