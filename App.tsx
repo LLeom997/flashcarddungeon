@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Papa from 'papaparse';
@@ -19,6 +18,8 @@ export default function App() {
   const [showToughOnly, setShowToughOnly] = useState(false);
   const [isReversed, setIsReversed] = useState(false);
   const [isAutoFlip, setIsAutoFlip] = useState(false);
+  const [isAutoSwipe, setIsAutoSwipe] = useState(false);
+  const [autoSwipeDuration, setAutoSwipeDuration] = useState(3); // Default 3 seconds
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
@@ -71,7 +72,7 @@ export default function App() {
 
   // Auto-flip effect
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    let interval: any;
     if (isAutoFlip && gameState === GameState.STUDY) {
       interval = setInterval(() => {
         setIsFlipped(prev => !prev);
@@ -81,6 +82,25 @@ export default function App() {
   }, [isAutoFlip, gameState]);
 
   // --- Actions ---
+
+  const nextCard = useCallback(() => {
+    if (activeDeck.length === 0) return;
+    setDirection(1);
+    setIsFlipped(false);
+    setCurrentIndex((prev) => (prev + 1) % activeDeck.length);
+  }, [activeDeck.length]);
+
+  // Auto-swipe effect
+  useEffect(() => {
+    let interval: any;
+    if (isAutoSwipe && gameState === GameState.STUDY && activeDeck.length > 0) {
+      interval = setInterval(() => {
+        nextCard();
+      }, autoSwipeDuration * 1000); 
+    }
+    return () => clearInterval(interval);
+  }, [isAutoSwipe, gameState, activeDeck.length, nextCard, autoSwipeDuration]);
+
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -107,6 +127,7 @@ export default function App() {
         setCurrentIndex(0);
         setIsFlipped(false);
         setIsAutoFlip(false);
+        setIsAutoSwipe(false);
       }
     } catch (error) {
       console.error(error);
@@ -138,6 +159,7 @@ export default function App() {
              setCurrentIndex(0);
              setIsFlipped(false);
              setIsAutoFlip(false);
+             setIsAutoSwipe(false);
         }
     } catch (error: any) {
         console.error(error);
@@ -164,6 +186,7 @@ export default function App() {
         setCurrentIndex(0);
         setIsFlipped(false);
         setIsAutoFlip(false);
+        setIsAutoSwipe(false);
       } catch (err) {
         console.error(err);
         alert("Error loading sheet.");
@@ -184,6 +207,7 @@ export default function App() {
       setCurrentIndex(0);
       setIsFlipped(false);
       setIsAutoFlip(false);
+      setIsAutoSwipe(false);
     } catch (error) {
       console.error(error);
       alert("Failed to generate cards. Please check your API key or try again.");
@@ -214,13 +238,6 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
   };
-
-  const nextCard = useCallback(() => {
-    if (activeDeck.length === 0) return;
-    setDirection(1);
-    setIsFlipped(false);
-    setCurrentIndex((prev) => (prev + 1) % activeDeck.length);
-  }, [activeDeck.length]);
 
   const prevCard = useCallback(() => {
     if (activeDeck.length === 0) return;
@@ -281,6 +298,10 @@ export default function App() {
     setIsAutoFlip(prev => !prev);
   };
 
+  const toggleAutoSwipe = () => {
+    setIsAutoSwipe(prev => !prev);
+  };
+
   // --- Animation Variants ---
   const slideVariants = {
     enter: (direction: number) => ({
@@ -337,12 +358,20 @@ export default function App() {
         case 'T':
           toggleTough();
           break;
+        case 'f':
+        case 'F':
+          toggleAutoFlip();
+          break;
+        case 'p':
+        case 'P':
+          toggleAutoSwipe();
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, nextCard, prevCard, flipCard, toggleTough, shuffleCards]);
+  }, [gameState, nextCard, prevCard, flipCard, toggleTough, shuffleCards, toggleAutoFlip, toggleAutoSwipe]);
 
   // --- Render ---
 
@@ -603,7 +632,7 @@ export default function App() {
             <Controls 
               currentIndex={currentIndex} 
               total={activeDeck.length} 
-              onRestart={() => { setCurrentIndex(0); setIsFlipped(false); setIsAutoFlip(false); }}
+              onRestart={() => { setCurrentIndex(0); setIsFlipped(false); setIsAutoFlip(false); setIsAutoSwipe(false); }}
               onDownload={handleDownload}
               showToughOnly={showToughOnly}
               onToggleMode={toggleStudyMode}
@@ -612,10 +641,14 @@ export default function App() {
               onToggleReverse={toggleReverseMode}
               isAutoFlip={isAutoFlip}
               onToggleAutoFlip={toggleAutoFlip}
+              isAutoSwipe={isAutoSwipe}
+              onToggleAutoSwipe={toggleAutoSwipe}
+              autoSwipeDuration={autoSwipeDuration}
+              onAutoSwipeDurationChange={setAutoSwipeDuration}
             />
 
             <div className="mt-8 text-xs text-gray-400 font-medium tracking-wide">
-              SPACE to flip • ARROWS to navigate • A / T for tough cards • Shift + S to shuffle
+              SPACE flip • ARROWS nav • A/T tough • S shuffle • F auto-flip • P auto-next
             </div>
 
           </div>
